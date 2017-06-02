@@ -1,0 +1,270 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>JSTris</title>
+        <script src="js/phaser.js"></script>
+    </head>
+    <body>
+
+    <script type="text/javascript">
+
+    window.onload = function() {
+
+        var game = new Phaser.Game(320, 640, Phaser.AUTO, 'game-area', { preload: preload, create: create, update: update });
+        var fallingBlock;
+        var lastBlockUpdate = 0;
+        var lastMoveUpdate = 0;
+        var CURRENT_FALLING_INTERVAL = 250;
+        var DEFAULT_FALLING_INTERVAL = 250;
+        const BLOCK_SIZE = 32;
+
+
+        function emptyLine(){
+            return  [0,0,0,0,0,0,0,0,0,0];
+        }
+        //20* 10
+        var alreadyPlacedBlocks =
+                [   emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine(),
+                    emptyLine()
+                ];
+
+        function preload () {
+
+            game.load.image('red_block', 'red_tetris_block.png');
+            game.load.image('blue_block', 'blue_tetris_block.png');
+            game.load.image('green_block', 'green_tetris_block.png');
+
+        }
+
+        function create () {
+
+            game.physics.startSystem(Phaser.Physics.ARCADE);
+            fallingBlock = createTetromino(getRandomTetriminosType());
+        }
+
+        function update () {
+
+            speedUpFall();
+
+            if(game.time.now - lastMoveUpdate >= 100) {
+
+                if (game.input.keyboard.isDown(Phaser.Keyboard.LEFT) && !hasBlockOnLeft()) {
+                    fallingBlock.x -= BLOCK_SIZE;
+                }
+                else if (game.input.keyboard.isDown(Phaser.Keyboard.RIGHT)
+                        && !hasBlockOnRight()) {
+                    fallingBlock.x += BLOCK_SIZE;
+                }
+                else if (game.input.keyboard.isDown(Phaser.Keyboard.UP)) {
+                    //Changer l'agencement à la main ...
+                }
+
+                lastMoveUpdate = game.time.now;
+            }
+
+            if(game.time.now - lastBlockUpdate >= CURRENT_FALLING_INTERVAL) {
+
+                //is touching bottom
+                if(isAtBottom()) {
+                    placeTetriminosThenCreateNewOne();
+                    deleteLinesIfCompleted();
+                }
+                else {
+
+                    //check if pieces behind position
+                    for (var i = 0; i < fallingBlock.children.length; i++){
+
+                        var block = fallingBlock.children[i];
+                        var x = (fallingBlock.x + block.x) / BLOCK_SIZE;
+                        var bottomLine = ((fallingBlock.y + block.y) / BLOCK_SIZE) +1;
+                        var currentLine = bottomLine -1;
+
+                        //fixme must check for each line occupied by the block
+                        if(alreadyPlacedBlocks[bottomLine][x] !== 0) {
+                            placeTetriminosThenCreateNewOne();
+                            deleteLinesIfCompleted();
+                            break;
+                        }
+                    }
+                }
+
+                //fixme, don't go down if not checked before
+                fallingBlock.y += BLOCK_SIZE;
+                lastBlockUpdate = game.time.now;
+            }
+        }
+
+        function deleteLinesIfCompleted(){
+
+            function lineIsCompleted(array) {
+                for(var i = 0; i < array.length; i++) {
+                    var current = array[i];
+                    if(current === 0)
+                        return false;
+                }
+                return true;
+            }
+
+
+            for (var i = 0; i < alreadyPlacedBlocks.length; i++){
+
+                var line = alreadyPlacedBlocks[i];
+                //delete line if done
+                if(lineIsCompleted(line)) {
+
+                    //destroy the line
+                    for (var j = 0; j < line.length; j++) {
+                        var placedBlock = line[j];
+                        placedBlock.kill();
+                        line[j] = 0;
+                    }
+
+                    //move everyone
+                    alreadyPlacedBlocks.slice(0, i)
+                            .forEach(function(line){
+                                line.forEach(function(block){
+                                    block.y += 32;
+                                });
+                            });
+                    alreadyPlacedBlocks.splice(i, 1);
+                    alreadyPlacedBlocks.unshift(emptyLine());
+                }
+            }
+        }
+
+        function isAtBottom(){
+            return fallingBlock.y + fallingBlock.height == game.height;
+        }
+
+        function hasBlockOnLeft(){
+
+            var x = fallingBlock.x / BLOCK_SIZE;
+
+            if(x === 0)
+                return true;
+
+           for(var i = 0; i < fallingBlock.children.length; i++){
+               var currentX = (fallingBlock.x + fallingBlock.children[i].x) / BLOCK_SIZE;
+               var currentY = (fallingBlock.y + fallingBlock.children[i].y) / BLOCK_SIZE;
+
+               if(alreadyPlacedBlocks[currentY][currentX -1] !== 0){
+                   return true;
+               }
+           }
+
+            return false;
+        }
+
+        function hasBlockOnRight(){
+
+            var x = (fallingBlock.x + fallingBlock.width) / BLOCK_SIZE;
+
+            if(x === game.width/BLOCK_SIZE)
+                return true;
+
+            for(var i = 0; i < fallingBlock.children.length; i++){
+                var child = fallingBlock.children[i];
+                var currentX = (fallingBlock.x + child.x + (child.width - 32)) / BLOCK_SIZE;
+                var currentY = (fallingBlock.y + child.y + (child.width - 32)) / BLOCK_SIZE;
+
+                if(alreadyPlacedBlocks[currentY][currentX +1] !== 0){
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function speedUpFall() {
+            if (game.input.keyboard.isDown(Phaser.Keyboard.DOWN))
+                CURRENT_FALLING_INTERVAL = DEFAULT_FALLING_INTERVAL /2;
+            else
+                CURRENT_FALLING_INTERVAL = DEFAULT_FALLING_INTERVAL;
+        }
+
+        function placeTetriminosThenCreateNewOne() {
+            fallingBlock.forEach(function (block) {
+                var x = (fallingBlock.x + block.x) / BLOCK_SIZE;
+                var y = (fallingBlock.y + block.y) / BLOCK_SIZE;
+                alreadyPlacedBlocks[y][x] = block;
+            });
+            fallingBlock = createTetromino(getRandomTetriminosType());
+        }
+
+        function getRandomTetriminosType() {
+            var choice = Math.floor(Math.random() * 3 + 1);
+
+            switch (choice) {
+                case 1:
+                    return 'LINE';
+                case 2:
+                    return 'CUBE';
+                case 3:
+                    return 'L_SHAPE';
+            }
+        }
+
+        function createTetromino(type){
+
+            var blockType;
+
+            var tetromino = game.add.group();
+            tetromino.enableBody = true;
+
+            switch(type) {
+
+                case 'LINE':
+                    blockType = 'blue_block';
+                    tetromino.create(0,0, blockType);
+                    tetromino.create(32,0, blockType);
+                    tetromino.create(64,0, blockType);
+                    tetromino.create(96,0, blockType);
+                    break;
+                case 'CUBE':
+                    blockType = 'red_block';
+                    tetromino.create(0,0, blockType);
+                    tetromino.create(32,0, blockType);
+                    tetromino.create(0,32, blockType);
+                    tetromino.create(32,32, blockType);
+                    break;
+                case 'L_SHAPE':
+                    blockType = 'green_block';
+                    tetromino.create(0,0, blockType);
+                    tetromino.create(0,32, blockType);
+                    tetromino.create(0,64, blockType);
+                    tetromino.create(32, 64, blockType);
+                    break;
+            }
+
+            tetromino.x = game.width / 2;
+            tetromino.y = -32;
+            return tetromino;
+        }
+
+    };
+
+    </script>
+
+    <div id="game-area" style="width:320px; margin:0 auto;"></div>
+
+    </body>
+</html>
