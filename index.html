@@ -124,7 +124,7 @@
                 return true;
             }
 
-
+            //foreach line
             for (var i = 0; i < alreadyPlacedBlocks.length; i++){
 
                 var line = alreadyPlacedBlocks[i];
@@ -138,11 +138,11 @@
                         line[j] = 0;
                     }
 
-                    //move everyone
+                    //move everyone that is on top of the line
                     alreadyPlacedBlocks.slice(0, i)
                             .forEach(function(line){
                                 line.forEach(function(block){
-                                    block.y += 32;
+                                    block.y += BLOCK_SIZE;
                                 });
                             });
                     alreadyPlacedBlocks.splice(i, 1);
@@ -183,8 +183,8 @@
 
             for(var i = 0; i < fallingBlock.children.length; i++){
                 var child = fallingBlock.children[i];
-                var currentX = (fallingBlock.x + child.x + (child.width - 32)) / BLOCK_SIZE;
-                var currentY = (fallingBlock.y + child.y + (child.width - 32)) / BLOCK_SIZE;
+                var currentX = (fallingBlock.x + child.x + (child.width - BLOCK_SIZE)) / BLOCK_SIZE;
+                var currentY = (fallingBlock.y + child.y + (child.width - BLOCK_SIZE)) / BLOCK_SIZE;
 
                 if(alreadyPlacedBlocks[currentY][currentX +1] !== 0){
                     return true;
@@ -256,7 +256,7 @@
             }
 
             tetromino.x = game.width / 2;
-            tetromino.y = -32;
+            tetromino.y = -BLOCK_SIZE;
             return tetromino;
         }
 
